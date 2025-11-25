@@ -8,9 +8,19 @@ import mlflow
 import mlflow.sklearn
 
 # Cargar el conjunto de datos
-iris = datasets.load_iris()
-X = iris.data
-y = iris.target
+
+# (p2.1)
+# iris = datasets.load_iris()  (p2.1)
+# X = iris.data
+# y = iris.target
+
+# (p3.2) substitute by this in p3.2
+try:
+    iris = pd.read_csv('data/iris_dataset.csv')
+except FileNotFoundError:
+    print("Error: El archivo 'data/iris_dataset.csv' no fue encontrado.")
+X = iris.drop('target', axis=1)
+y = iris['target']
 
 # Iniciar un experimento de MLflow
 with mlflow.start_run():
