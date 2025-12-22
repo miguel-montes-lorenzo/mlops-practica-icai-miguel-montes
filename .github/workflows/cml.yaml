@@ -42,12 +42,10 @@ jobs:
         #   dvc remote modify origin --local secret_access_key $DAGSHUB_API_KEY
         #   dvc pull -r origin
         env:
-          DAGSHUB_OWNER: ${{ secrets.DAGSHUB_OWNER }}   # p.ej. "miguel-montes-lorenzo" (owner del repo)
-          DAGSHUB_API_KEY: ${{ secrets.DAGSHUB_API_KEY }} # token
+          DAGSHUB_OWNER: ${{ secrets.DAGSHUB_OWNER }}
+          DAGSHUB_API_KEY: ${{ secrets.DAGSHUB_API_KEY }}
+        if: ${{ env.DAGSHUB_API_KEY != '' }}
         run: |
-          # Asegura soporte S3 (por si setup-dvc no trae el extra)
-          python -m pip install -U "dvc[s3]"
-          # Config S3-compatible de DagsHub
           dvc remote modify origin endpointurl "https://dagshub.com/api/v1/repo-buckets/s3/${DAGSHUB_OWNER}"
           dvc remote modify origin --local access_key_id "${DAGSHUB_API_KEY}"
           dvc remote modify origin --local secret_access_key "${DAGSHUB_API_KEY}"
