@@ -1858,17 +1858,21 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "dvc", extra = ["s3"] },
+    { name = "matplotlib" },
     { name = "mlflow" },
     { name = "pandas" },
     { name = "scikit-learn" },
+    { name = "seaborn" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "dvc", extras = ["s3"], specifier = ">=3.64.0" },
+    { name = "matplotlib", specifier = ">=3.10.7" },
     { name = "mlflow", specifier = "<3" },
     { name = "pandas", specifier = ">=2.3.3" },
     { name = "scikit-learn", specifier = ">=1.7.2" },
+    { name = "seaborn", specifier = ">=0.13.2" },
 ]
 
 [[package]]
@@ -3167,6 +3171,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/09/29/3be9bd304887acb9596c28c52d8e6e350683649a78478be3bbf6572838bf/scmrepo-3.5.5.tar.gz", hash = "sha256:51a2cdae283d5b378dd94275caac5db2c6b0d4dd9876531d27c68466b8e387af", size = 96848, upload-time = "2025-11-19T03:22:56.119Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/bb/82/269b65e67e585d6181cb3c2e96f73cd6d438b634e92fefc96996b916d495/scmrepo-3.5.5-py3-none-any.whl", hash = "sha256:17b660ddf4880e60b89d985a82300024cf3a49d4d2f95541acb41db4df960327", size = 74096, upload-time = "2025-11-19T03:22:54.858Z" },
+]
+
+[[package]]
+name = "seaborn"
+version = "0.13.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "matplotlib" },
+    { name = "numpy" },
+    { name = "pandas" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/86/59/a451d7420a77ab0b98f7affa3a1d78a313d2f7281a57afb1a34bae8ab412/seaborn-0.13.2.tar.gz", hash = "sha256:93e60a40988f4d65e9f4885df477e2fdaff6b73a9ded434c1ab356dd57eefff7", size = 1457696, upload-time = "2024-01-25T13:21:52.551Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/83/11/00d3c3dfc25ad54e731d91449895a79e4bf2384dc3ac01809010ba88f6d5/seaborn-0.13.2-py3-none-any.whl", hash = "sha256:636f8336facf092165e27924f223d3c62ca560b1f2bb5dff7ab7fad265361987", size = 294914, upload-time = "2024-01-25T13:21:49.598Z" },
 ]
 
 [[package]]

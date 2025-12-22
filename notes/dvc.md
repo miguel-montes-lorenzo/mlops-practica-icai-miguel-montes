@@ -46,6 +46,14 @@ dvc init
 
 Esto crea la carpeta `.dvc/` y deja listo el proyecto para versionar datos.
 
+> Es conveniente actualizar el .gitignore para evitar exponer ficheros de DVC que puedan contener datos sensibles
+
+```
+echo ".dvc/config.local" >> .gitignore
+echo ".dvc/tmp/" >> .gitignore
+echo ".dvc/cache/" >> .gitignore
+```
+
 **2. Añadir un archivo o carpeta grande al control de DVC**
 
 ```bash
