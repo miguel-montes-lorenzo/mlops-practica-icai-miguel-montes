@@ -1,7 +1,11 @@
 __pycache__/
 *.pkl
 *.json
-mlruns/
 .venv
 
+.dvc/config.local
+.dvc/tmp/
+.dvc/cache/
+
+mlruns/
 outputs/confusion_matrix.png
