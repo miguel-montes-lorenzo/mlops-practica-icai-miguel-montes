@@ -33,8 +33,12 @@ jobs:
           restore-keys: |
             dvc-cache-
 
-      - name: DVC Pull
+      - name: Install DVC S3 plugin
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install "dvc[s3]"
 
+      - name: DVC Pull
         env:
           DAGSHUB_API_KEY: ${{ secrets.DAGSHUB_API_KEY }}
           # Las credenciales de Dagshub son necesarias para acceder al almacenamiento remoto
@@ -42,29 +46,6 @@ jobs:
           dvc remote modify origin --local access_key_id $DAGSHUB_API_KEY
           dvc remote modify origin --local secret_access_key $DAGSHUB_API_KEY
           dvc pull -r origin
-
-        # env:
-        #   DAGSHUB_OWNER: ${{ secrets.DAGSHUB_OWNER }}
-        #   DAGSHUB_API_KEY: ${{ secrets.DAGSHUB_API_KEY }}
-        # if: ${{ env.DAGSHUB_API_KEY != '' }}
-        # run: |
-        #   dvc remote modify origin endpointurl "https://dagshub.com/api/v1/repo-buckets/s3/${DAGSHUB_OWNER}"
-        #   dvc remote modify origin --local access_key_id "${DAGSHUB_API_KEY}"
-        #   dvc remote modify origin --local secret_access_key "${DAGSHUB_API_KEY}"
-        #   dvc pull -r origin
-
-        # if: env.DAGSHUB_API_KEY != ''
-        # env:
-        #   DAGSHUB_OWNER: ${{ secrets.DAGSHUB_OWNER }}
-        #   DAGSHUB_API_KEY: ${{ secrets.DAGSHUB_API_KEY }}
-        # run: |
-        #   # (Opcional pero recomendable si no lo tienes ya)
-        #   pip install -q dvc-s3
-
-        #   dvc remote modify origin endpointurl "https://dagshub.com/api/v1/repo-buckets/s3/${DAGSHUB_OWNER}"
-        #   dvc remote modify origin --local access_key_id "${DAGSHUB_API_KEY}"
-        #   dvc remote modify origin --local secret_access_key "${DAGSHUB_API_KEY}"
-        #   dvc pull -r origin
 
       - name: Install dependencies
         run: |
