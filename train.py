@@ -98,6 +98,7 @@ with mlflow.start_run():
     plt.ylabel("True Values")
 
     # Save the figure as an image so CML can include it in the report
+    os.makedirs("outputs", exist_ok=True)
     plt.savefig("outputs/confusion_matrix.png")
 
     print("Confusion matrix saved as 'confusion_matrix.png'")
