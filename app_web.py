@@ -1,4 +1,5 @@
 import json
+import os
 
 import requests
 import streamlit as st
@@ -18,7 +19,7 @@ if st.button("Obtener Predicción"):
     features = [sepal_length, sepal_width, petal_length, petal_width]
     payload = {"features": features}
 
-    api_url = "http://localhost:5000/predict"
+    api_url = os.environ.get("API_URL")
 
     try:
         response = requests.post(
