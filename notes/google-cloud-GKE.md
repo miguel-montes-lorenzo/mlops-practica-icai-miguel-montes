@@ -65,9 +65,70 @@ Tú te encargas de:
 
 ## ENDPOINTS RELEVANTES
 
-Billing:
+> La web de Google Cloud está organizada en secciones y subsecciones.
+> Las secciones son:
+>
+> - Facturación
+> - IAM y administración
+> - Marketplace
+> - Vertex AI
+> - Compute Engine
+> - Kubernetes Engine
+> - Cloud Storage
+> - Seguridad
+> - BigQuery
+> - Monitoring
+> - Cloud Run
+> - Red de VPC
+> - Cloud SQL
+>
+> Para cambiar de sección hay que:
+>
+> 1. Entrar en Google Cloud Console
+> ![](figures/GKE/google-cloud-main-menu.png)
+> 2. Desplegar el menú de arriba a la izquierda:
+> ![](figures/GKE/google-cloud-console.png)
 
-<https://console.cloud.google.com/billing/>  # ver todas mis cuentas de cobro
-<https://console.cloud.google.com/billing/014506-6496FA-320584>  # cuentas-de-cobro/"my-billing-account"  (es la única cuenta de cobro que tengo)
-<https://console.cloud.google.com/billing/projects>  # cuentas-de-cobro/.../proyectos
-<https://console.cloud.google.com/billing/credits/all>  # cuentas-de-cobro/.../vales-de-crédito  (aquí tengo el vale gratuito)
+Facturación:
+
+<https://console.cloud.google.com/billing/>  # facturación/
+<https://console.cloud.google.com/billing/014506-6496FA-320584>  # facturación/descripción general/
+<https://console.cloud.google.com/billing/projects>  # facturación/descripción general/
+<https://console.cloud.google.com/billing/014506-6496FA-320584/credits/all>  # facturación/<cuenta>/creditos/todos los creditos/
+
+APIs y Servicios:
+
+## Pasos seguidos en la práctica
+
+Ejectuar lo siguiente en la consola de Google Cloud:
+
+```
+export PROJECT_ID="digital-gearbox-476106-a0"  # proyect ID del proyecto ICAI2025
+gcloud config set project $PROJECT_ID  # configura el proyecto activo por defecto del CLI gcloud
+gcloud container clusters create mlops-gke-cluster \
+  --zone us-central1-a \  # indica en qué zona física de Google Cloud se despliega el clúster
+  --num-nodes 2 \  # crea un node pool inicial con 2 nodos
+  --service-account="icai2025@$PROJECT_ID.iam.gserviceaccount.com"  # indicar el uso de la cuenta de servicio son los permisos adecuados
+```
+
+Añadir los siguientes secretos a GitHub (**Settings** $\to$ **Secrets and variables** $\to$ **Actions**):
+
+- **GCP_SA_KEY**: Contenido completo del JSON de la service account.
+
+- **GCP_PROJECT_ID**: ID del proyecto (**digital-gearbox-476106-a0**)
+
+- **GKE_CLUSTER**: Nombre dado al clúster (**mlops-gke-cluster**)
+
+- **GKE_ZONE**: Zona horaria seleccionada para el alojamiento del clúster (**us-central1-a**)
+
+---
+
+Añadir los siguientes secretos a GitHub (**Settings** $\to$ **Secrets and variables** $\to$ **Actions**):
+
+- **GCP_SA_KEY**: Contenido completo del JSON de la service account.
+
+- **GCP_PROJECT_ID**: ID del proyecto (**digital-gearbox-476106-a0**)
+
+- **GKE_CLUSTER**: Nombre dado al clúster (**mlops-gke-cluster**)
+
+- **GKE_ZONE**: Zona horaria seleccionada para el alojamiento del clúster (**us-central1-a**)

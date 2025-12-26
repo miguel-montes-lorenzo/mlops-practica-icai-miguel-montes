@@ -64,3 +64,42 @@ jobs:
           # DVC repro ejecutará la etapa "train" y, por lo tanto, el script train.py.
           dvc pull data/iris_dataset.csv
           dvc repro
+
+  deploy-to-gke:
+    needs: train-and-report
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      - name: Set up gcloud CLI and kubectl
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          install_components: gke-gcloud-auth-plugin
+
+      - name: Get GKE credentials
+        run: |
+          gcloud container clusters get-credentials \
+            ${{ vars.GKE_CLUSTER }} \
+            --zone ${{ vars.GKE_ZONE }} \
+            --project ${{ vars.GCP_PROJECT_ID }}
+
+      - name: Configure Docker for GCR
+        run: |
+          gcloud auth configure-docker --quiet
+
+      - name: Build and Push API Docker Image
+        run: |
+          docker build -t gcr.io/${{ vars.GCP_PROJECT_ID }}/mlops-api:latest .
+          docker push gcr.io/${{ vars.GCP_PROJECT_ID }}/mlops-api:latest
+
+      - name: Deploy API to GKE
+        run: |
+          kubectl apply -f k8s/api-deployment.yaml
+          kubectl apply -f k8s/api-service.yaml
