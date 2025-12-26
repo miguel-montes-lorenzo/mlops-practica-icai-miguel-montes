@@ -73,6 +73,34 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
+      # --- AÑADE ESTO ---
+      - name: DVC and Python setup
+        uses: iterative/setup-dvc@v1
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install DVC S3 plugin
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install "dvc[s3]"
+
+      - name: DVC Pull (model + data if needed)
+        env:
+          DAGSHUB_API_KEY: ${{ secrets.DAGSHUB_API_KEY }}
+        run: |
+          dvc remote modify origin --local access_key_id $DAGSHUB_API_KEY
+          dvc remote modify origin --local secret_access_key $DAGSHUB_API_KEY
+          dvc pull -r origin
+
+      - name: Check model exists
+        run: |
+          ls -lah
+          test -f model.pkl && echo "model.pkl OK" || (echo "model.pkl NO EXISTE" && exit 1)
+      # --- FIN DE LO AÑADIDO ---
+
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
