@@ -83,6 +83,13 @@ jobs:
         with:
           install_components: gke-gcloud-auth-plugin
 
+      - name: Debug vars
+        run: |
+          echo "GKE_CLUSTER='${{ vars.GKE_CLUSTER }}'"
+          echo "GKE_ZONE='${{ vars.GKE_ZONE }}'"
+          echo "GCP_PROJECT_ID='${{ vars.GCP_PROJECT_ID }}'"
+          test -n "${{ vars.GKE_ZONE }}" || (echo "GKE_ZONE está VACÍA" && exit 1)
+
       - name: Get GKE credentials
         run: |
           gcloud container clusters get-credentials \
