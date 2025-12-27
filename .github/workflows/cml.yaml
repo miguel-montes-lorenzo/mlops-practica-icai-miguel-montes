@@ -135,6 +135,8 @@ jobs:
             --zone ${{ secrets.GKE_ZONE }} \
             --project ${{ secrets.GCP_PROJECT_ID }}
 
+      # 1st implementation
+
       # - name: Configure Docker for GCR
       #   run: |
       #     gcloud auth configure-docker --quiet
@@ -144,17 +146,57 @@ jobs:
       #     docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-api:latest .
       #     docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-api:latest
 
-      - name: Configure Docker for GCR
+      # ---
+      
+      # 2nd implementation
+
+      # - name: Configure Docker for GCR
+      #   run: |
+      #     gcloud auth configure-docker gcr.io --quiet
+
+      # - name: Build and Push API Docker Image
+      #   run: |
+      #     IMAGE="gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-api:latest"
+      #     docker build -t "$IMAGE" .
+      #     docker push "$IMAGE"
+
+      # ---
+
+      # 3rd implementation
+
+      - name: Configure Docker to use GCR
         run: |
           gcloud auth configure-docker gcr.io --quiet
 
+      # --- CONSTRUIR Y SUBIR IMAGEN DE LA API (mlops-api) ---
+      # - name: Build and Push API Docker Image
+      #   run: |
+      #     docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-api:latest .
+      #     docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-api:latest
       - name: Build and Push API Docker Image
         run: |
           IMAGE="gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-api:latest"
           docker build -t "$IMAGE" .
           docker push "$IMAGE"
 
+      # --- CONSTRUIR Y SUBIR IMAGEN DE LA WEB (mlops-web) ---
+      # - name: Build and Push Web Docker Image
+      #   run: |
+      #     docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-web:latest -f Dockerfile.web .
+      #     docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-web:latest
+      - name: Build and Push Web Docker Image
+        run: |
+          IMAGE="gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-web:latest"
+          docker build -t "$IMAGE" -f Dockerfile.web .
+          docker push "$IMAGE"
+
+      # ----
+
       - name: Deploy API to GKE
         run: |
-          kubectl apply -f k8s/deployment.yaml
-          kubectl apply -f k8s/service.yaml
+          # api deployment
+          kubectl apply -f k8s/api-deployment.yaml
+          kubectl apply -f k8s/api-service.yaml
+          # web deployment
+          kubectl apply -f k8s/web-deployment.yaml
+          kubectl apply -f k8s/web-service.yaml
