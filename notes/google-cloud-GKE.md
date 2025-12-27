@@ -117,7 +117,7 @@ gcloud container clusters create mlops-gke-cluster \
   --service-account="icai2025@${PROJECT_ID}.iam.gserviceaccount.com"
 ```
 
-> Ejecutar lo siguiente para pararlo
+> Si en algún momento se quiere pararlo basta con ejecutar lo siguiente:
 >
 > ```
 > gcloud container clusters delete mlops-gke-cluster \
@@ -215,3 +215,21 @@ Cuando ejecutas:
 ```
 
 Google Cloud comprueba los permisos de **esa service account**. Como `gcr.io` ahora está gestionado por **Artifact Registry**, si el repositorio no existe exige el permiso `artifactregistry.repositories.createOnPush`. Si la service account no lo tiene, el push falla.
+
+---
+
+Probar la API
+
+```
+kubectl run -it --rm --restart=Never curltest \
+  --image=curlimages/curl:8.5.0 \
+  -- sh -lc 'curl -s -X POST -H "Content-Type: application/json" -d "{\"features\": [5.1, 3.5, 1.4, 0.2]}" http://mlops-api-service:5000/predict'
+```
+
+Resultado esperado:
+
+```
+{"prediction": 0}
+```
+
+---
