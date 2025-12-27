@@ -156,5 +156,5 @@ jobs:
 
       - name: Deploy API to GKE
         run: |
-          kubectl apply -f k8s/api-deployment.yaml
-          kubectl apply -f k8s/api-service.yaml
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
