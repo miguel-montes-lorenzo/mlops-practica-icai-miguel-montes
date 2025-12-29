@@ -98,7 +98,156 @@ Facturación:
 
 APIs y Servicios:
 
-## Pasos seguidos en la práctica
+## Pasos seguidos en la práctica de GKE
+
+Crear el fichero `k8s/api-service.yaml`:
+
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlops-api-service
+spec:
+  selector:
+    app: mlops-api
+  ports:
+    - port: 5000
+      targetPort: 5000
+  type: ClusterIP
+```
+
+**Purpose:** Exposes the API Deployment **inside the cluster**.
+
+- Defines a **ClusterIP Service**, which is only accessible from within Kubernetes.
+- Selects pods labeled `app: mlops-api`.
+- Forwards traffic from port **5000** of the service to port **5000** of the API containers.
+- Provides a **stable DNS name** (`mlops-api-service`) for internal communication.
+
+In short: this file allows **other services (like the web app)** to reliably communicate with the API.
+
+---
+
+Crear el fichero `k8s/api-deployment.yaml`:
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlops-api-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlops-api
+  template:
+    metadata:
+      labels:
+        app: mlops-api
+    spec:
+      containers:
+        - name: mlops-api
+          image: gcr.io/<PROJECT-ID>/mlops-api:latest  # substitute by Google Cloud project ID
+          ports:
+            - containerPort: 5000
+```
+
+**Purpose:** Deploys the backend API application.
+
+- Defines a **Deployment** that manages the lifecycle of the API pods.
+- Ensures **1 replica** of the API container is running.
+- Specifies which **Docker image** to run (`mlops-api`) and exposes port **5000** inside the container.
+- Uses labels (`app: mlops-api`) so other Kubernetes resources (like Services) can target these pods.
+
+In short: this file is responsible for **running and keeping alive the API application** inside the cluster.
+
+---
+
+Crear el fichero `k8s/web-service.yaml`:
+
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlops-web-service
+spec:
+  selector:
+    app: mlops-web
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8501
+  type: LoadBalancer
+```
+
+**Purpose:** Exposes the web application **to the outside world**.
+
+- Defines a **LoadBalancer Service**, which in GKE provisions a **public external IP**.
+- Maps port **80** (HTTP) externally to port **8501** inside the web container.
+- Selects pods labeled `app: mlops-web`.
+
+In short: this file makes the **web UI accessible from the internet** via a public IP.
+
+---
+
+Crear el fichero `k8s/web-deployment.yaml`:
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlops-web-deployment
+  labels:
+    app: mlops-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlops-web
+  template:
+    metadata:
+      labels:
+        app: mlops-web
+    spec:
+      containers:
+        - name: mlops-web
+          image: gcr.io/<PROJECT-ID>/mlops-web:latest  # substitute by Google Cloud project ID
+          ports:
+            - containerPort: 8501
+          env:
+            - name: API_URL
+              value: http://mlops-api-service:5000/predict
+```
+
+**Purpose:** Deploys the frontend web application.
+
+- Defines a **Deployment** for the web UI (Streamlit app).
+- Runs **1 replica** of the web container on port **8501**.
+- Injects the environment variable `API_URL`, pointing to the internal API service:
+
+  ```
+  http://mlops-api-service:5000/predict
+  ```
+
+- Uses labels (`app: mlops-web`) to be targeted by its Service.
+
+In short: this file is responsible for **running the user-facing web application** and configuring it to call the API.
+
+---
+
+**Overall architecture summary**
+
+- **Deployments** (`*-deployment.yaml`)
+  → Run and manage containers (API and Web).
+- **Services** (`*-service.yaml`)
+  → Provide networking, discovery, and exposure.
+- **API Service**
+  → Internal-only (`ClusterIP`).
+- **Web Service**
+  → Public-facing (`LoadBalancer`).
+
+This separation follows standard Kubernetes best practices: **internal microservice + external frontend**, cleanly decoupled and scalable.
+
+---
 
 Añadir este job al cml.yaml:
 
@@ -173,21 +322,45 @@ on: [push, pull_request]  # lo primero que hace el clúster es un pull request d
         run: |
           gcloud auth configure-docker gcr.io --quiet
 
-      # --- CONSTRUIR Y SUBIR IMAGEN DE LA API (mlops-api) ---
-      - name: Build and Push API Docker Image
+      # --- CONSTRUIR, ESCANEAR Y SUBIR IMAGEN DE LA API (mlops-api) ---
+      - name: Build API Docker Image
         run: |
           IMAGE="gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-api:latest"
           docker build -t "$IMAGE" .
+
+      - name: Trivy Scan for API Image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-api:latest
+          format: table
+          exit-code: '1'
+          severity: CRITICAL
+
+      - name: Push API Docker Image
+        run: |
+          IMAGE="gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-api:latest"
           docker push "$IMAGE"
       # ---
 
-      # --- CONSTRUIR Y SUBIR IMAGEN DE LA WEB (mlops-web) ---
-      - name: Build and Push Web Docker Image
+      # --- CONSTRUIR, ESCANEAR Y SUBIR IMAGEN DE LA WEB (mlops-web) ---
+      - name: Build Web Docker Image
         run: |
           IMAGE="gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-web:latest"
           docker build -t "$IMAGE" -f Dockerfile.web .
+
+      - name: Trivy Scan for Web Image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-web:latest
+          format: table
+          exit-code: '1'
+          severity: CRITICAL
+
+      - name: Push Web Docker Image
+        run: |
+          IMAGE="gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-web:latest"
           docker push "$IMAGE"
-      # ----
+      # ---
 
       - name: Deploy API to GKE
         run: |
@@ -235,15 +408,21 @@ Ejectuar lo siguiente en la consola de Google Cloud para poner en marcha el clú
 export PROJECT_ID="digital-gearbox-476106-a0"  # proyect ID del proyecto ICAI2025
 gcloud config set project $PROJECT_ID  # configura el proyecto activo por defecto del CLI gcloud
 
+# Poner en marcha el cluster
 gcloud container clusters create mlops-gke-cluster \
   --zone us-central1-a  # indica en qué zona física de Google Cloud se despliega el clúster \
   --num-nodes 2  # crea un node pool inicial con 2 nodos \
-  --service-account="icai2025@$PROJECT_ID.iam.gserviceaccount.com"  # indicar el uso de la cuenta de servicio son los permisos adecuados
+  --service-account="icai2025@${PROJECT_ID}.iam.gserviceaccount.com"  # indicar el uso de la cuenta de servicio son los permisos adecuados
 
-gcloud container clusters create mlops-gke-cluster \
+gcloud artifacts repositories create gcr.io \
+  --repository-format=docker \
+  --location=us \
+  --description="Compat repo for gcr.io"
+
+# Cargar credenciales del cluster en kubeconfig
+gcloud container clusters get-credentials mlops-gke-cluster \
   --zone us-central1-a \
-  --num-nodes 2 \
-  --service-account="icai2025@${PROJECT_ID}.iam.gserviceaccount.com"
+  --project digital-gearbox-476106-a0
 ```
 
 > Para comprobar si el cluster está activo (si existe), ejecutar lo siguiente:
@@ -259,9 +438,11 @@ gcloud container clusters create mlops-gke-cluster \
 >   --zone us-central1-a
 > ```
 
+---
+
 Añadir los siguientes secretos a GitHub (**Settings** $\to$ **Secrets and variables** $\to$ **Actions**):
 
-- **GCP_SA_KEY**: Contenido completo del JSON de la service account.
+- **GCP_SA_KEY**: Contenido completo del JSON de la service account. (en caso de no contar con el `.json` del service account, desde Google Cloud se puede descargar uno nuevo fácilmente)
 
 - **GCP_PROJECT_ID**: ID del proyecto (**digital-gearbox-476106-a0**)
 
@@ -311,7 +492,3 @@ http://<EXTERNAL-IP>
 ```
 
 ---
-
-git add .
-git commit --allow-empty -m "rerun github actions"
-git push

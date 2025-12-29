@@ -132,21 +132,45 @@ jobs:
         run: |
           gcloud auth configure-docker gcr.io --quiet
 
-      # --- CONSTRUIR Y SUBIR IMAGEN DE LA API (mlops-api) ---
-      - name: Build and Push API Docker Image
+      # --- CONSTRUIR, ESCANEAR Y SUBIR IMAGEN DE LA API (mlops-api) ---
+      - name: Build API Docker Image
         run: |
           IMAGE="gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-api:latest"
           docker build -t "$IMAGE" .
+
+      - name: Trivy Scan for API Image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-api:latest
+          format: table
+          exit-code: '1'
+          severity: CRITICAL
+
+      - name: Push API Docker Image
+        run: |
+          IMAGE="gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-api:latest"
           docker push "$IMAGE"
       # ---
 
-      # --- CONSTRUIR Y SUBIR IMAGEN DE LA WEB (mlops-web) ---
-      - name: Build and Push Web Docker Image
+      # --- CONSTRUIR, ESCANEAR Y SUBIR IMAGEN DE LA WEB (mlops-web) ---
+      - name: Build Web Docker Image
         run: |
           IMAGE="gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-web:latest"
           docker build -t "$IMAGE" -f Dockerfile.web .
+
+      - name: Trivy Scan for Web Image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-web:latest
+          format: table
+          exit-code: '1'
+          severity: CRITICAL
+
+      - name: Push Web Docker Image
+        run: |
+          IMAGE="gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-web:latest"
           docker push "$IMAGE"
-      # ----
+      # ---
 
       - name: Deploy API to GKE
         run: |
