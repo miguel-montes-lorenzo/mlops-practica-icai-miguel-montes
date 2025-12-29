@@ -93,7 +93,7 @@ Facturación:
 
 <https://console.cloud.google.com/billing/>  # facturación/
 <https://console.cloud.google.com/billing/014506-6496FA-320584>  # facturación/descripción general/
-<https://console.cloud.google.com/billing/projects>  # facturación/descripción general/
+<https://console.cloud.google.com/billing/projects>  # facturación/proyectos/
 <https://console.cloud.google.com/billing/014506-6496FA-320584/credits/all>  # facturación/<cuenta>/creditos/todos los creditos/
 
 APIs y Servicios:
@@ -117,12 +117,17 @@ gcloud container clusters create mlops-gke-cluster \
   --service-account="icai2025@${PROJECT_ID}.iam.gserviceaccount.com"
 ```
 
-> Si en algún momento se quiere pararlo basta con ejecutar lo siguiente:
+> Para comprobar si el cluster está activo (si existe), ejecutar lo siguiente:
+>
+> ```
+> gcloud container clusters list
+> ```
+
+> Para parar el servidor, ejecutar lo siguiente:
 >
 > ```
 > gcloud container clusters delete mlops-gke-cluster \
->   --zone us-central1-a \
->   --project digital-gearbox-476106-a0
+>   --zone us-central1-a
 > ```
 
 Añadir los siguientes secretos a GitHub (**Settings** $\to$ **Secrets and variables** $\to$ **Actions**):
