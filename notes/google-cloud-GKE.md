@@ -100,6 +100,135 @@ APIs y Servicios:
 
 ## Pasos seguidos en la práctica
 
+Añadir este job al cml.yaml:
+
+```
+name: MLOps with CML
+on: [push, pull_request]  # lo primero que hace el clúster es un pull request del repositorio indicado
+                          # hacer esto pondrá en marcha el pipeline automáticamente
+
+  # ...
+
+  deploy-to-gke:
+    needs: train-and-report
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # --- custom: ensure dependencies installed
+      - name: DVC and Python setup
+        uses: iterative/setup-dvc@v1
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install DVC S3 plugin
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install "dvc[s3]"
+
+      - name: DVC Pull (model + data if needed)
+        env:
+          DAGSHUB_API_KEY: ${{ secrets.DAGSHUB_API_KEY }}
+        run: |
+          dvc remote modify origin --local access_key_id $DAGSHUB_API_KEY
+          dvc remote modify origin --local secret_access_key $DAGSHUB_API_KEY
+          dvc pull -r origin
+
+      - name: Check model exists
+        run: |
+          ls -lah
+          test -f model.pkl && echo "model.pkl OK" || (echo "model.pkl NO EXISTE" && exit 1)
+      # --- custom: end
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+      
+      - name: Set up gcloud CLI and kubectl
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          install_components: gke-gcloud-auth-plugin
+
+      - name: Debug vars
+        run: |
+          echo "GKE_CLUSTER='${{ secrets.GKE_CLUSTER }}'"
+          echo "GKE_ZONE='${{ secrets.GKE_ZONE }}'"
+          echo "GCP_PROJECT_ID='${{ secrets.GCP_PROJECT_ID }}'"
+          test -n "${{ secrets.GKE_ZONE }}" || (echo "GKE_ZONE está VACÍA" && exit 1)
+
+      - name: Get GKE credentials
+        run: |
+          gcloud container clusters get-credentials \
+            ${{ secrets.GKE_CLUSTER }} \
+            --zone ${{ secrets.GKE_ZONE }} \
+            --project ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Configure Docker to use GCR
+        run: |
+          gcloud auth configure-docker gcr.io --quiet
+
+      # --- CONSTRUIR Y SUBIR IMAGEN DE LA API (mlops-api) ---
+      - name: Build and Push API Docker Image
+        run: |
+          IMAGE="gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-api:latest"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+      # ---
+
+      # --- CONSTRUIR Y SUBIR IMAGEN DE LA WEB (mlops-web) ---
+      - name: Build and Push Web Docker Image
+        run: |
+          IMAGE="gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-web:latest"
+          docker build -t "$IMAGE" -f Dockerfile.web .
+          docker push "$IMAGE"
+      # ----
+
+      - name: Deploy API to GKE
+        run: |
+          # api deployment
+          kubectl apply -f k8s/api-deployment.yaml
+          kubectl apply -f k8s/api-service.yaml
+          # web deployment
+          kubectl apply -f k8s/web-deployment.yaml
+          kubectl apply -f k8s/web-service.yaml
+```
+
+GitHub Actions solo ejecuta comandos en una máquina temporal; no decide permisos ni almacena la imagen. No estás haciendo un push a GitHub, sino a **Google Cloud** (`gcr.io`).
+
+En este paso del workflow te autenticas **como una service account de Google Cloud**:
+
+```yaml
+- uses: google-github-actions/auth@v2
+  with:
+    credentials_json: '${{ secrets.GCP_SA_KEY }}'
+```
+
+Después, Docker se configura para usar esa identidad al hacer push a `gcr.io`:
+
+```yaml
+- name: Configure Docker for GCR
+  run: gcloud auth configure-docker gcr.io --quiet
+```
+
+Cuando ejecutas:
+
+```yaml
+- name: Build and Push API Docker Image
+  run: |
+    docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-api:latest .
+    docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-api:latest
+```
+
+Google Cloud comprueba los permisos de **esa service account**. Como `gcr.io` ahora está gestionado por **Artifact Registry**, si el repositorio no existe exige el permiso `artifactregistry.repositories.createOnPush`. Si la service account no lo tiene, el push falla.
+
+---
+
 Ejectuar lo siguiente en la consola de Google Cloud para poner en marcha el clúster:
 
 ```
@@ -142,87 +271,6 @@ Añadir los siguientes secretos a GitHub (**Settings** $\to$ **Secrets and varia
 
 ---
 
-Añadir este job al cml.yaml:
-
-```
-  deploy-to-gke:
-    needs: train-and-report
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: '${{ secrets.GCP_SA_KEY }}'
-
-      - name: Set up gcloud CLI and kubectl
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          install_components: gke-gcloud-auth-plugin
-
-      - name: Debug vars
-        run: |
-          echo "GKE_CLUSTER='${{ secrets.GKE_CLUSTER }}'"
-          echo "GKE_ZONE='${{ secrets.GKE_ZONE }}'"
-          echo "GCP_PROJECT_ID='${{ secrets.GCP_PROJECT_ID }}'"
-          test -n "${{ secrets.GKE_ZONE }}" || (echo "GKE_ZONE está VACÍA" && exit 1)
-
-      - name: Get GKE credentials
-        run: |
-          gcloud container clusters get-credentials \
-            ${{ secrets.GKE_CLUSTER }} \
-            --zone ${{ secrets.GKE_ZONE }} \
-            --project ${{ secrets.GCP_PROJECT_ID }}
-
-      - name: Configure Docker for GCR
-        run: |
-          gcloud auth configure-docker gcr.io --quiet
-
-      - name: Build and Push API Docker Image
-        run: |
-          IMAGE="gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-api:latest"
-          docker build -t "$IMAGE" .
-          docker push "$IMAGE"
-
-      - name: Deploy API to GKE
-        run: |
-          kubectl apply -f k8s/api-deployment.yaml
-          kubectl apply -f k8s/api-service.yaml
-```
-
-GitHub Actions solo ejecuta comandos en una máquina temporal; no decide permisos ni almacena la imagen. No estás haciendo un push a GitHub, sino a **Google Cloud** (`gcr.io`).
-
-En este paso del workflow te autenticas **como una service account de Google Cloud**:
-
-```yaml
-- uses: google-github-actions/auth@v2
-  with:
-    credentials_json: '${{ secrets.GCP_SA_KEY }}'
-```
-
-Después, Docker se configura para usar esa identidad al hacer push a `gcr.io`:
-
-```yaml
-- name: Configure Docker for GCR
-  run: gcloud auth configure-docker gcr.io --quiet
-```
-
-Cuando ejecutas:
-
-```yaml
-- name: Build and Push API Docker Image
-  run: |
-    docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-api:latest .
-    docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-api:latest
-```
-
-Google Cloud comprueba los permisos de **esa service account**. Como `gcr.io` ahora está gestionado por **Artifact Registry**, si el repositorio no existe exige el permiso `artifactregistry.repositories.createOnPush`. Si la service account no lo tiene, el push falla.
-
----
-
 Probar la API
 
 ```
@@ -235,6 +283,31 @@ Resultado esperado:
 
 ```
 {"prediction": 0}
+```
+
+---
+
+**Acceder al endpoint del front-end web**
+
+Listar los servicios que se encuentran en ejecución en el clúster:
+
+```
+kubectl get services
+```
+
+Resultado esperado:
+
+```
+NAME                TYPE           CLUSTER-IP     EXTERNAL-IP      PORT(S)
+mlops-api-service   ClusterIP      10.xxx.xxx.x   <none>           5000/TCP
+mlops-web-service   LoadBalancer   10.xxx.xxx.x   34.xxx.xxx.xxx   80:3xxxx/TCP
+kubernetes          ClusterIP      34.xxx.xxx.x   <none>           443/TCP
+```
+
+Acceder a la `External-IP` de mlops-web-service:
+
+```
+http://<EXTERNAL-IP>
 ```
 
 ---
